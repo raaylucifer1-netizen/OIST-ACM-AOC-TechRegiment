@@ -47,16 +47,20 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight">Create an account</CardTitle>
-          <CardDescription>Enter your details below to create your account</CardDescription>
+    <div className="flex h-screen w-full items-center justify-center bg-zinc-950 p-4">
+      <Card className="w-full max-w-md border-zinc-800 bg-zinc-900 text-zinc-100 shadow-2xl">
+        <CardHeader className="space-y-3 pb-4 text-center">
+          <div className="flex flex-col items-center gap-1 mb-2">
+            <span className="text-4xl font-black tracking-wider text-amber-400 leading-none">AARU</span>
+            <span className="text-xs font-semibold tracking-[0.3em] text-zinc-400 uppercase">India</span>
+          </div>
+          <CardTitle className="text-xl font-bold tracking-tight text-zinc-100">Create an account</CardTitle>
+          <CardDescription className="text-zinc-400">Enter your details below to get started</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
+              <Label htmlFor="fullName" className="text-zinc-300">Full Name</Label>
               <Input
                 id="fullName"
                 type="text"
@@ -64,10 +68,11 @@ export default function RegisterPage() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
+                className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-400"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-zinc-300">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -75,37 +80,40 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-400"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-zinc-300">Password</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="bg-zinc-800 border-zinc-700 text-zinc-100 focus:border-amber-400"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-zinc-300">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
+                className="bg-zinc-800 border-zinc-700 text-zinc-100 focus:border-amber-400"
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button className="w-full" type="submit" disabled={loading}>
+            <Button className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold" type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign Up
             </Button>
-            <div className="text-center text-sm">
+            <div className="text-center text-sm text-zinc-400">
               Already have an account?{" "}
-              <a href="/login" className="font-medium text-blue-600 hover:underline">
+              <a href="/login" className="font-medium text-amber-400 hover:text-amber-300">
                 Sign in
               </a>
             </div>

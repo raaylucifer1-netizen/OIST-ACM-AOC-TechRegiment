@@ -31,13 +31,31 @@ export default function ChatPage() {
       setLoading(true);
       const res = await api.get(`/conversations/${id}`);
       setConversation(res.data);
-      setMessages(res.data.messages || []);
+      // Clean existing messages too
+      const msgs = (res.data.messages || []).map((m: any) => ({
+        ...m,
+        content: m.role !== "user" ? cleanResponse(m.content || "") : (m.content || ""),
+      }));
+      setMessages(msgs);
     } catch (error) {
       console.error("Failed to fetch conversation", error);
     } finally {
       setLoading(false);
     }
   };
+
+  /** Strip markdown, code fences, JSON artifacts from AI response text */
+  function cleanResponse(text: string): string {
+    return text
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`[^`]*`/g, "")
+      .replace(/^\s*[\*\-]\s+/gm, "")
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .replace(/#{1,6}\s+/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,11 +82,17 @@ export default function ChatPage() {
       const res = await api.post(`/conversations/${id}/messages`, {
         content: userMessage
       });
-      // Append the response from persona
-      setMessages(prev => [...prev, res.data]);
+      // Append the response from persona — clean any markdown/code artifacts
+      const cleaned = cleanResponse(res.data.content || res.data.message || "");
+      setMessages(prev => [...prev, { ...res.data, content: cleaned }]);
     } catch (error) {
       console.error("Failed to send message", error);
-      // In a real app, we'd show an error toast here
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "Sorry, I couldn't respond right now. Please try again.",
+        created_at: new Date().toISOString()
+      }]);
     } finally {
       setSending(false);
     }

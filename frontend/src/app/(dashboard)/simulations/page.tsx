@@ -92,7 +92,14 @@ export default function SimulationsPage() {
       const formatted = detailRes.data.responses.map((r: any) => ({
         persona_id: r.persona_id,
         persona_label: r.persona_label,
-        response: r.response,
+        response: (r.response || "")
+          .replace(/```[\s\S]*?```/g, "")
+          .replace(/`[^`]*`/g, "")
+          .replace(/\*\*(.*?)\*\*/g, "$1")
+          .replace(/\*(.*?)\*/g, "$1")
+          .replace(/#{1,6}\s+/g, "")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim(),
         confidence: r.confidence,
         decision: r.decision,
         sentiment: r.sentiment,
@@ -158,7 +165,15 @@ export default function SimulationsPage() {
             const data = JSON.parse(dataStr);
             if (data.simulation_id) { simId = data.simulation_id; }
             else if (data.persona_id) {
-              setResults((prev) => [...prev, { persona_id: data.persona_id, persona_label: data.persona_label, response: data.response, confidence: data.confidence, decision: data.decision }]);
+              const cleanResp = (data.response || "")
+                .replace(/```[\s\S]*?```/g, "")
+                .replace(/`[^`]*`/g, "")
+                .replace(/\*\*(.*?)\*\*/g, "$1")
+                .replace(/\*(.*?)\*/g, "$1")
+                .replace(/#{1,6}\s+/g, "")
+                .replace(/\n{3,}/g, "\n\n")
+                .trim();
+              setResults((prev) => [...prev, { persona_id: data.persona_id, persona_label: data.persona_label, response: cleanResp, confidence: data.confidence, decision: data.decision }]);
             } else if (data.analytics) {
               setAnalytics(data.analytics);
             } else if (data.error) { toast.error(data.error); }

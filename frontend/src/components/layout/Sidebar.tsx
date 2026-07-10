@@ -41,9 +41,9 @@ export function Sidebar() {
       <div className="flex h-full w-64 flex-col border-r bg-zinc-950 text-zinc-50 shrink-0">
         {/* Logo */}
         <div className="flex h-14 items-center border-b border-zinc-800 px-4">
-          <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
-            <div className="h-6 w-6 rounded-md bg-white text-black flex items-center justify-center text-xs font-black">A</div>
-            AARU
+          <div className="flex flex-col leading-none">
+            <span className="text-2xl font-black tracking-wider text-amber-400">AARU</span>
+            <span className="text-[9px] font-semibold tracking-[0.25em] text-zinc-500 uppercase -mt-0.5">India</span>
           </div>
         </div>
 
@@ -58,7 +58,7 @@ export function Sidebar() {
                   href={item.href}
                   className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-zinc-800 text-white"
+                      ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
                       : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
                   }`}
                 >
@@ -72,15 +72,15 @@ export function Sidebar() {
 
         {/* Pro CTA */}
         <div className="border-t border-zinc-800 p-3">
-          <div className="rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-900 p-4 border border-zinc-700">
+          <div className="rounded-xl bg-gradient-to-br from-amber-950/60 to-zinc-900 p-4 border border-amber-800/40">
             <div className="flex items-center gap-1.5 mb-1">
-              <Zap className="h-3.5 w-3.5 text-yellow-400" />
-              <h4 className="text-sm font-semibold">Upgrade to Pro</h4>
+              <Zap className="h-3.5 w-3.5 text-amber-400" />
+              <h4 className="text-sm font-semibold text-amber-300">Upgrade to Pro</h4>
             </div>
             <p className="text-xs text-zinc-400 mb-3">Unlock unlimited personas and high-fidelity simulations.</p>
             <button
               onClick={() => setShowUpgrade(true)}
-              className="w-full rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-200 transition-colors"
+              className="w-full rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-amber-400 transition-colors"
             >
               View Plans
             </button>
@@ -95,7 +95,7 @@ export function Sidebar() {
             <div className="p-6 border-b flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-bold">Choose Your Plan</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">Scale your research with AARU's powerful simulation engine.</p>
+                <p className="text-sm text-muted-foreground mt-0.5">Scale your research with <span className="text-amber-500 font-semibold">Aaru India</span>'s powerful simulation engine.</p>
               </div>
               <button onClick={() => setShowUpgrade(false)} className="rounded-full p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
                 <X className="h-5 w-5" />

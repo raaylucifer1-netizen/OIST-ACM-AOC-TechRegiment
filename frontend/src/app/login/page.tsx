@@ -37,16 +37,21 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight">PersonaX Login</CardTitle>
-          <CardDescription>Enter your email and password to access your account</CardDescription>
+    <div className="flex h-screen w-full items-center justify-center bg-zinc-950 p-4">
+      <Card className="w-full max-w-md border-zinc-800 bg-zinc-900 text-zinc-100 shadow-2xl">
+        <CardHeader className="space-y-3 pb-6 text-center">
+          {/* Logo */}
+          <div className="flex flex-col items-center gap-1 mb-2">
+            <span className="text-4xl font-black tracking-wider text-amber-400 leading-none">AARU</span>
+            <span className="text-xs font-semibold tracking-[0.3em] text-zinc-400 uppercase">India</span>
+          </div>
+          <CardTitle className="text-xl font-bold tracking-tight text-zinc-100">Welcome Back</CardTitle>
+          <CardDescription className="text-zinc-400">Enter your credentials to access the platform</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-zinc-300">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -54,12 +59,13 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-400"
               />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <a href="#" className="text-sm font-medium text-blue-600 hover:underline">
+                <Label htmlFor="password" className="text-zinc-300">Password</Label>
+                <a href="#" className="text-sm font-medium text-amber-400 hover:text-amber-300">
                   Forgot password?
                 </a>
               </div>
@@ -69,17 +75,18 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="bg-zinc-800 border-zinc-700 text-zinc-100 focus:border-amber-400"
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button className="w-full" type="submit" disabled={loading}>
+            <Button className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold" type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign In
             </Button>
-            <div className="text-center text-sm">
-              Don't have an account?{" "}
-              <a href="/register" className="font-medium text-blue-600 hover:underline">
+            <div className="text-center text-sm text-zinc-400">
+              Don&apos;t have an account?{" "}
+              <a href="/register" className="font-medium text-amber-400 hover:text-amber-300">
                 Sign up
               </a>
             </div>

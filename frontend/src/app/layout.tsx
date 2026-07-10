@@ -7,8 +7,8 @@ import AuthProvider from "@/components/AuthProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "PersonaX - Agentic AI Platform",
-  description: "Synthetic Human Population Simulator",
+  title: "Aaru India - Agentic AI Platform",
+  description: "Synthetic Human Population Simulator for India",
 };
 
 export default function RootLayout({
