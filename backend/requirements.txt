@@ -1,0 +1,24 @@
+# FastAPI & Server
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+sqlalchemy[asyncio]
+aiosqlite
+
+# Auth
+python-jose[cryptography]
+argon2-cffi
+pydantic[email]
+pydantic-settings
+
+# AI
+groq
+chromadb
+
+# Data
+openpyxl
+
+# Utils
+python-dateutil
