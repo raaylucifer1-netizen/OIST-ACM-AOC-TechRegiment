@@ -192,10 +192,15 @@ export default function PersonasPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            Personas Database {total > 0 && `(${total.toLocaleString()})`}
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            Persona Database
+            {total > 0 && (
+              <span className="text-base font-normal text-muted-foreground">
+                — <span className="text-amber-500 font-bold">{total.toLocaleString()}</span> personas
+              </span>
+            )}
           </h2>
-          <p className="text-muted-foreground">Browse, filter, and manage your synthetic population.</p>
+          <p className="text-muted-foreground">Browse, filter, and manage your synthetic Indian population.</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -207,11 +212,36 @@ export default function PersonasPage() {
             <TrendingUp className="h-4 w-4" />
             {showStats ? "Hide Stats" : "Show Stats"}
           </Button>
-          <Button className="gap-2" onClick={() => { setShowImport(true); setImportResult(null); setImportFile(null); }}>
+          <Button className="gap-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold" onClick={() => { setShowImport(true); setImportResult(null); setImportFile(null); }}>
             <Upload className="h-4 w-4" /> Import Personas
           </Button>
         </div>
       </div>
+
+      {/* Persona count pill — only when we have data */}
+      {total > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+          <Database className="h-5 w-5 text-amber-500 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold">
+              <span className="text-amber-500 font-black text-lg">{total.toLocaleString()}</span>
+              {" "}synthetic Indian personas loaded
+            </p>
+            <p className="text-xs text-muted-foreground">
+              The simulation agent samples from this database — the more personas, the richer your results.
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-xs text-muted-foreground">Page {page} of {totalPages}</p>
+            <div className="flex gap-1 mt-1">
+              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setPage(1)} disabled={page === 1}>«</Button>
+              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1}>‹ Prev</Button>
+              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setPage(p => Math.min(p + 1, totalPages))} disabled={page === totalPages}>Next ›</Button>
+              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setPage(totalPages)} disabled={page === totalPages}>»</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Panel */}
       {showStats && stats && (
@@ -481,22 +511,24 @@ export default function PersonasPage() {
               </div>
 
               {total > 0 && (
-                <div className="flex items-center justify-between py-1">
+                <div className="flex items-center justify-between py-2">
                   <p className="text-sm text-muted-foreground">
-                    Showing <span className="font-medium">{(page - 1) * pageSize + 1}</span>–
-                    <span className="font-medium">{Math.min(page * pageSize, total)}</span> of{" "}
-                    <span className="font-medium">{total.toLocaleString()}</span>
+                    Showing <span className="font-semibold text-foreground">{(page - 1) * pageSize + 1}</span>–
+                    <span className="font-semibold text-foreground">{Math.min(page * pageSize, total)}</span> of{" "}
+                    <span className="font-semibold text-amber-500">{total.toLocaleString()}</span> personas
                   </p>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={page === 1}>
-                      Previous
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" className="h-8 px-2" onClick={() => setPage(1)} disabled={page === 1} title="First page">«</Button>
+                    <Button variant="outline" size="sm" className="h-8" onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={page === 1}>
+                      ‹ Previous
                     </Button>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-sm text-muted-foreground px-3 border rounded-md h-8 flex items-center">
                       {page} / {totalPages}
                     </span>
-                    <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(p + 1, totalPages))} disabled={page === totalPages}>
-                      Next
+                    <Button variant="outline" size="sm" className="h-8" onClick={() => setPage((p) => Math.min(p + 1, totalPages))} disabled={page === totalPages}>
+                      Next ›
                     </Button>
+                    <Button variant="outline" size="sm" className="h-8 px-2" onClick={() => setPage(totalPages)} disabled={page === totalPages} title="Last page">»</Button>
                   </div>
                 </div>
               )}

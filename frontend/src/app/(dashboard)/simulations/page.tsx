@@ -12,12 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
-  Loader2, Play, BrainCircuit, BarChart2, PieChart, FileText,
-  TrendingUp, Users, ThumbsUp, ThumbsDown, Minus, CheckCircle2, Plus, ChevronDown,
+  Loader2, Play, BrainCircuit, BarChart2, FileText,
+  TrendingUp, Users, ThumbsUp, CheckCircle2, Plus, Database, Zap,
 } from "lucide-react";
 import {
   PieChart as RechartsPie, Pie, Cell, BarChart, Bar,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 
 const SIM_TYPES = [
@@ -46,6 +46,7 @@ export default function SimulationsPage() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [report, setReport] = useState<any>(null);
   const [activeResultTab, setActiveResultTab] = useState("responses");
+  const [personaCount, setPersonaCount] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     title: "New Simulation",
@@ -59,7 +60,17 @@ export default function SimulationsPage() {
     income_max: "",
   });
 
-  useEffect(() => { fetchPastSimulations(); }, []);
+  useEffect(() => {
+    fetchPastSimulations();
+    fetchPersonaCount();
+  }, []);
+
+  const fetchPersonaCount = async () => {
+    try {
+      const res = await api.get("/personas", { params: { page: 1, page_size: 1 } });
+      setPersonaCount(res.data.total || 0);
+    } catch {}
+  };
 
   const fetchPastSimulations = async (selectId?: string) => {
     try {
@@ -248,6 +259,45 @@ export default function SimulationsPage() {
           <Button variant="outline" size="sm" onClick={resetForm} className="gap-2">
             <Plus className="h-4 w-4" /> New Simulation
           </Button>
+        )}
+      </div>
+
+      {/* Persona Pool Status Banner */}
+      <div className={`rounded-xl border px-4 py-3 flex items-center gap-4 ${
+        personaCount && personaCount > 0
+          ? "bg-amber-500/5 border-amber-500/20"
+          : "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+      }`}>
+        <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
+          personaCount && personaCount > 0 ? "bg-amber-500/15" : "bg-zinc-200 dark:bg-zinc-800"
+        }`}>
+          <Database className={`h-5 w-5 ${personaCount && personaCount > 0 ? "text-amber-500" : "text-zinc-400"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          {personaCount === null ? (
+            <p className="text-sm text-muted-foreground">Loading persona pool...</p>
+          ) : personaCount === 0 ? (
+            <>
+              <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">No personas in database</p>
+              <p className="text-xs text-muted-foreground">Go to the Personas tab and import personas before running a simulation.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold">
+                <span className="text-amber-500 font-black">{personaCount.toLocaleString()}</span>
+                {" "}personas available in your database
+              </p>
+              <p className="text-xs text-muted-foreground">
+                The simulation agent will randomly sample from these real Indian personas based on your filters.
+              </p>
+            </>
+          )}
+        </div>
+        {personaCount !== null && personaCount > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium shrink-0">
+            <Zap className="h-3.5 w-3.5" />
+            Agent Ready
+          </div>
         )}
       </div>
 
