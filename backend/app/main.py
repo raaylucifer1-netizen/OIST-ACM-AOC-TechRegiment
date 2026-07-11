@@ -1,26 +1,49 @@
 """PersonaX — Agentic AI Platform Backend Entry Point."""
 
 import asyncio
+import logging
+import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from app.config import settings
-from app.database import init_db
+from app.database import init_db, async_session
+
+# Configure structured production logging
+logging.basicConfig(
+    level=logging.INFO if not settings.DEBUG else logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger("personax")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
-    # Startup: create database tables
-    print("\n PersonaX Backend Starting...")
-    print(f"   Database: {settings.DATABASE_URL}")
-    print(f"   AI Model: {settings.GEMINI_MODEL}")
-    print(f"   CORS Origins: {settings.cors_origins_list}")
-
-    # Import models to register them with Base
-    import app.models  # noqa: F401
-    await init_db()
-    print("   [OK] Database tables created")
+    logger.info("PersonaX Backend Starting...")
+    
+    # Startup Validation
+    if not settings.DATABASE_URL:
+        logger.error("CRITICAL ERROR: DATABASE_URL environment variable is missing.")
+        sys.exit(1)
+        
+    try:
+        # Import models to register them with Base
+        import app.models  # noqa: F401
+        
+        # Connect to Supabase PostgreSQL and verify connection
+        logger.info("Attempting to connect to the database...")
+        async with async_session() as db:
+            await db.execute(text("SELECT 1"))
+        logger.info("Successfully connected to the database.")
+        
+        await init_db()
+        logger.info("Database tables initialized.")
+    except Exception as e:
+        logger.error(f"CRITICAL ERROR: Failed to connect to or initialize the database. Error: {e}")
+        sys.exit(1)
 
     # Auto-import personas for users that have none
     await _auto_import_personas()
@@ -29,12 +52,12 @@ async def lifespan(app: FastAPI):
     from app.engine.resume_manager import resume_paused_simulations
     resume_task = asyncio.create_task(resume_paused_simulations())
 
-    print("   [OK] PersonaX Backend Ready!\n")
+    logger.info("PersonaX Backend Ready!")
 
     yield
 
     # Shutdown
-    print("\n PersonaX Backend Shutting Down...\n")
+    logger.info("PersonaX Backend Shutting Down...")
     resume_task.cancel()
 
 
@@ -60,7 +83,7 @@ async def _auto_import_personas():
             break
 
     if not csv_path:
-        print("   [SKIP] No persona CSV found for auto-import")
+        logger.info("[SKIP] No persona CSV found for auto-import")
         return
 
     async with async_session() as db:
@@ -75,14 +98,14 @@ async def _auto_import_personas():
             count = count_result.scalar() or 0
 
             if count == 0:
-                print(f"   [IMPORT] Importing personas for {user.email} ...")
+                logger.info(f"[IMPORT] Importing personas for {user.email} ...")
                 try:
                     res = await import_from_path(db, csv_path, user.id)
-                    print(f"   [OK] Imported {res.get('imported', 0)} personas for {user.email}")
+                    logger.info(f"[OK] Imported {res.get('imported', 0)} personas for {user.email}")
                 except Exception as e:
-                    print(f"   [ERROR] Failed to import for {user.email}: {e}")
+                    logger.error(f"[ERROR] Failed to import for {user.email}: {e}")
             else:
-                print(f"   [OK] {user.email} already has {count:,} personas")
+                logger.info(f"[OK] {user.email} already has {count:,} personas")
 
 
 # Create FastAPI app
@@ -134,4 +157,4 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    return {"status": "ok"}

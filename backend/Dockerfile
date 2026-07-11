@@ -17,7 +17,8 @@ RUN pip install --no-cache-dir uvicorn[standard] gunicorn
 
 COPY . .
 
+# Expose a default port (Render will override this via the PORT environment variable)
 EXPOSE 8000
 
-# Run the application using gunicorn and uvicorn workers
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-c", "gunicorn.conf.py", "--bind", "0.0.0.0:8000", "app.main:app"]
+# Run the application using gunicorn and uvicorn workers with dynamic PORT support
+CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker -c gunicorn.conf.py --bind 0.0.0.0:$PORT app.main:app"]

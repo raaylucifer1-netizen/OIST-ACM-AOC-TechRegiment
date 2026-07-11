@@ -24,3 +24,5 @@ openpyxl
 
 # Utils
 python-dateutil
+python-dotenv
+gunicorn
