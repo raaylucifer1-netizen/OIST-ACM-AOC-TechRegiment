@@ -18,6 +18,8 @@ pydantic-settings
 # AI
 groq
 chromadb
+google-generativeai
+httpx
 
 # Data
 openpyxl
