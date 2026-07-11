@@ -9,10 +9,10 @@ class Settings(BaseSettings):
     APP_NAME: str = "PersonaX"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
-    CORS_ORIGINS: str = "http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:3000,*"
 
-    # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./data/personax.db"
+    # Database (Default to PostgreSQL, fallback to SQLite if needed)
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/personax"
 
     # JWT
     JWT_SECRET_KEY: str = "change-this-to-a-random-secret-key-at-least-32-chars"
