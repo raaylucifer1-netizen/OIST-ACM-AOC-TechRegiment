@@ -1,13 +1,25 @@
-"""Database engine and session management for async SQLite."""
+"""Database engine and session management."""
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
 
-connect_args = {"check_same_thread": False, "timeout": 30} if settings.DATABASE_URL.startswith("sqlite") else {}
+if (
+    settings.DATABASE_URL.startswith("postgresql://")
+    and not settings.DATABASE_URL.startswith("postgresql+asyncpg://")
+):
+    raise RuntimeError(
+        "DATABASE_URL must use the asyncpg driver. "
+        "Expected: postgresql+asyncpg://..."
+    )
+
+db_url = settings.DATABASE_URL
+
+is_sqlite = db_url.startswith("sqlite")
+connect_args = {"check_same_thread": False, "timeout": 30} if is_sqlite else {}
 
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    db_url,
     echo=settings.DEBUG,
     connect_args=connect_args,
 )

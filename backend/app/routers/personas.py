@@ -322,10 +322,8 @@ async def import_from_server_csv(
 
     # Try multiple known paths
     candidate_paths = [
-        r"D:\AARU\Personas\personas_20000.csv",
-        r"D:\AARU\backend\data\personas_20000.csv",
-        r"D:\AARU\Personas\personas_20000.xlsx",
         "./data/personas_20000.csv",
+        "../data/personas_20000.csv",
     ]
 
     filepath = None
