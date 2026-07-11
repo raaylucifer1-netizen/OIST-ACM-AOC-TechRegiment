@@ -55,16 +55,19 @@ async def import_csv(
             sheet = wb.active
             for i, row in enumerate(sheet.iter_rows(values_only=True)):
                 if i == 0:
-                    headers = [str(cell).strip() if cell else "" for cell in row]
+                    headers = [str(cell).strip().lower() if cell else "" for cell in row]
                 else:
                     rows.append(row)
         else:
             # Assuming CSV
-            text_content = file_content.decode("utf-8")
+            try:
+                text_content = file_content.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                text_content = file_content.decode("cp1252", errors="replace")
             reader = csv.reader(io.StringIO(text_content))
             for i, row in enumerate(reader):
                 if i == 0:
-                    headers = [str(cell).strip() if cell else "" for cell in row]
+                    headers = [str(cell).strip().lower() if cell else "" for cell in row]
                 else:
                     rows.append(row)
 

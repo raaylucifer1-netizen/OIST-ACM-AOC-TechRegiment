@@ -26,7 +26,7 @@ async def seed():
         
         print(f"Created admin user with ID: {user.id}")
 
-        csv_path = "D:/AARU/backend/data/personas_20000.csv"
+        csv_path = r"D:\AARU\Personas\personas_20000.csv"
         if os.path.exists(csv_path):
             print(f"Importing personas from {csv_path}...")
             result = await import_from_path(db, csv_path, user.id)

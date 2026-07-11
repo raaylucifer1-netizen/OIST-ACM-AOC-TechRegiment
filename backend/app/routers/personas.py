@@ -322,8 +322,9 @@ async def import_from_server_csv(
 
     # Try multiple known paths
     candidate_paths = [
-        r"D:\AARU\backend\data\personas_20000.csv",
         r"D:\AARU\Personas\personas_20000.csv",
+        r"D:\AARU\backend\data\personas_20000.csv",
+        r"D:\AARU\Personas\personas_20000.xlsx",
         "./data/personas_20000.csv",
     ]
 
@@ -339,8 +340,13 @@ async def import_from_server_csv(
             detail="Server CSV not found. Please upload a CSV file instead.",
         )
 
-    result = await import_from_path(db, filepath, current_user.id)
-    return result
+    try:
+        result = await import_from_path(db, filepath, current_user.id)
+        return result
+    except Exception as e:
+        import traceback
+        error_msg = f"Import failed: {str(e)}\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @router.delete("/bulk/all")

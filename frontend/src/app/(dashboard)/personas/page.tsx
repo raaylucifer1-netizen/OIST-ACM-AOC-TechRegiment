@@ -40,7 +40,7 @@ export default function PersonasPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageSize = 20;
+  const pageSize = 10;
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 

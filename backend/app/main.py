@@ -13,19 +13,70 @@ async def lifespan(app: FastAPI):
     # Startup: create database tables
     print("\n PersonaX Backend Starting...")
     print(f"   Database: {settings.DATABASE_URL}")
-    print(f"   Gemini Model: {settings.GEMINI_MODEL}")
+    print(f"   AI Model: {settings.GEMINI_MODEL}")
     print(f"   CORS Origins: {settings.cors_origins_list}")
 
     # Import models to register them with Base
     import app.models  # noqa: F401
     await init_db()
     print("   [OK] Database tables created")
+
+    # Auto-import personas for users that have none
+    await _auto_import_personas()
+
     print("   [OK] PersonaX Backend Ready!\n")
 
     yield
 
     # Shutdown
     print("\n PersonaX Backend Shutting Down...\n")
+
+
+async def _auto_import_personas():
+    """Auto-import 20,000 personas from CSV for any user with 0 personas."""
+    import os
+    from sqlalchemy import select, func
+    from app.database import async_session
+    from app.models.user import User
+    from app.models.persona import Persona
+    from app.utils.csv_importer import import_from_path
+
+    csv_candidates = [
+        r"D:\AARU\Personas\personas_20000.csv",
+        r"D:\AARU\backend\data\personas_20000.csv",
+        "./data/personas_20000.csv",
+    ]
+
+    csv_path = None
+    for path in csv_candidates:
+        if os.path.exists(path):
+            csv_path = path
+            break
+
+    if not csv_path:
+        print("   [SKIP] No persona CSV found for auto-import")
+        return
+
+    async with async_session() as db:
+        # Get all users
+        result = await db.execute(select(User))
+        users = result.scalars().all()
+
+        for user in users:
+            count_result = await db.execute(
+                select(func.count(Persona.id)).where(Persona.user_id == user.id)
+            )
+            count = count_result.scalar() or 0
+
+            if count == 0:
+                print(f"   [IMPORT] Importing personas for {user.email} ...")
+                try:
+                    res = await import_from_path(db, csv_path, user.id)
+                    print(f"   [OK] Imported {res.get('imported', 0)} personas for {user.email}")
+                except Exception as e:
+                    print(f"   [ERROR] Failed to import for {user.email}: {e}")
+            else:
+                print(f"   [OK] {user.email} already has {count:,} personas")
 
 
 # Create FastAPI app

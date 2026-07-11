@@ -42,6 +42,14 @@ class MemoryEngine:
             history.append({"role": role, "parts": [msg["content"]]})
         return history
 
+    def get_conversation_history_for_groq(self, persona_id: str) -> list[dict]:
+        """Format short-term memory as Groq chat history format."""
+        history = []
+        for msg in self.get_short_term(persona_id):
+            role = "user" if msg["role"] == "user" else "assistant"
+            history.append({"role": role, "content": msg["content"]})
+        return history
+
 
 # Singleton
 memory_engine = MemoryEngine()

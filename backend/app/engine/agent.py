@@ -1,6 +1,6 @@
 """PersonaAgent — the core agentic AI unit. Each persona becomes an autonomous agent."""
 
-from app.engine.gemini_client import gemini_client
+from app.engine.groq_client import groq_client
 from app.engine.prompt_engine import build_persona_system_prompt, build_simulation_prompt
 from app.engine.decision_engine import calculate_temperature, process_response
 from app.engine.memory_engine import memory_engine
@@ -52,8 +52,8 @@ class PersonaAgent:
         else:
             user_message = question
 
-        # Generate response via Gemini
-        response_text = await gemini_client.generate(
+        # Generate response via Groq
+        response_text = await groq_client.generate(
             system_prompt=self.system_prompt,
             user_message=user_message,
             temperature=self.temperature,
@@ -81,10 +81,10 @@ class PersonaAgent:
         memory_engine.add_short_term(conversation_key, "user", user_message)
 
         # Get conversation history
-        history = memory_engine.get_conversation_history_for_gemini(conversation_key)
+        history = memory_engine.get_conversation_history_for_groq(conversation_key)
 
         # Generate response with history
-        response_text = await gemini_client.generate_with_history(
+        response_text = await groq_client.generate_with_history(
             system_prompt=self.system_prompt,
             messages=history,
             temperature=self.temperature,

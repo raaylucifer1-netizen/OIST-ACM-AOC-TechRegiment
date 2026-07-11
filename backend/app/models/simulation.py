@@ -41,9 +41,16 @@ class SimulationResponse(Base):
     simulation_id: Mapped[str] = mapped_column(String(36), ForeignKey("simulations.id", ondelete="CASCADE"), nullable=False, index=True)
     persona_id: Mapped[str] = mapped_column(String(36), ForeignKey("personas.id", ondelete="CASCADE"), nullable=False)
     response: Mapped[str] = mapped_column(Text, nullable=False)
-    sentiment: Mapped[float | None] = mapped_column(Float, nullable=True)  # -1.0 to 1.0
+    sentiment: Mapped[str | None] = mapped_column(String(50), nullable=True)  # Positive, Neutral, Negative
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)  # 0.0 to 1.0
-    decision: Mapped[str | None] = mapped_column(String(50), nullable=True)  # yes, no, maybe, neutral
+    purchase_probability: Mapped[int | None] = mapped_column(Integer, nullable=True) # 0 to 100
+    decision: Mapped[str | None] = mapped_column(String(50), nullable=True)  # Buy, Consider, Neutral, Reject
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    price_opinion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    important_factor: Mapped[str | None] = mapped_column(Text, nullable=True)
+    improvement_suggestion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider_used: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    generation_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # Extra structured data
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False

@@ -7,3 +7,4 @@ from app.models.simulation import Simulation, SimulationResponse
 from app.models.conversation import Conversation, Message
 from app.models.memory import Memory
 from app.models.report import Report
+from app.models.generation_log import GenerationLog

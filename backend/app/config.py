@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama3-8b-8192"
 
+    # Gemini
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_EMBEDDING_MODEL: str = "text-embedding-004"
+
     # Email
     EMAIL_MODE: str = "console"  # "console" prints to terminal, "smtp" sends real emails
 
