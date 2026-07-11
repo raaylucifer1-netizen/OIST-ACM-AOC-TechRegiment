@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "PersonaX"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
-    CORS_ORIGINS: str = "http://localhost:3000,*"
+    CORS_ORIGINS: str = "http://localhost:3000,https://aaruindia.vercel.app,https://frontend-qzpkbosl6-raaylucifer1-7665s-projects.vercel.app,*"
 
     # Database (Default to PostgreSQL, fallback to SQLite if needed)
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/personax"

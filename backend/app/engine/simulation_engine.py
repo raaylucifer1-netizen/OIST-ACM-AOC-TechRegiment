@@ -11,7 +11,8 @@ from sqlalchemy import select, func
 
 from app.models.persona import Persona
 from app.models.simulation import Simulation, SimulationResponse
-from app.engine.agent import PersonaAgent, AgentResponse
+from app.response_agent.response_agent import ResponseGenerationAgent
+from app.response_agent.retry_manager import QuotaExceededError
 
 
 async def select_persona_sample(
@@ -20,9 +21,13 @@ async def select_persona_sample(
     sample_size: int,
     filters: dict | None = None,
     project_id: str | None = None,
+    exclude_ids: set[str] | None = None,
 ) -> list[Persona]:
     """Select a representative sample of personas with optional filtering."""
     query = select(Persona).where(Persona.user_id == user_id)
+    
+    if exclude_ids:
+        query = query.where(Persona.id.notin_(exclude_ids))
 
     if project_id:
         query = query.where(Persona.project_id == project_id)
@@ -65,141 +70,217 @@ async def run_simulation_stream(
     db: AsyncSession,
     simulation: Simulation,
     personas: list[Persona],
-    batch_size: int = 20,
+    batch_size: int = 10,
 ):
     """Run a simulation and yield responses as they complete (Server-Sent Events)."""
-    all_responses: list[AgentResponse] = []
-    total = len(personas)
+    # Find completed personas to resume
+    completed_query = select(SimulationResponse.persona_id).where(SimulationResponse.simulation_id == simulation.id)
+    completed_result = await db.execute(completed_query)
+    completed_ids = set(completed_result.scalars().all())
+    
+    pending_personas = [p for p in personas if p.id not in completed_ids]
+    
+    # Load all existing responses for analytics aggregation later
+    existing_resp_query = select(SimulationResponse).where(SimulationResponse.simulation_id == simulation.id)
+    existing_resp_result = await db.execute(existing_resp_query)
+    all_responses_db = list(existing_resp_result.scalars().all())
+    
+    all_responses_dicts = [
+        {
+            "sentiment": r.sentiment,
+            "decision": r.decision,
+            "confidence": r.confidence,
+            "persona_id": r.persona_id
+        }
+        for r in all_responses_db
+    ]
+
+    total = len(pending_personas)
+    
+    if total == 0 and len(personas) > 0:
+        # Already completed
+        analytics = aggregate_results_dicts(all_responses_dicts, personas)
+        simulation.status = "completed"
+        simulation.completed_at = datetime.now(timezone.utc)
+        simulation.results_summary = json.dumps(analytics)
+        await db.commit()
+        yield {"analytics": analytics}
+        return
+
+    is_paused = False
 
     for i in range(0, total, batch_size):
-        batch = personas[i:i + batch_size]
+        batch = pending_personas[i:i + batch_size]
         
-        # We need a wrapper to attach persona info to the result
         async def process_persona(p: Persona):
-            agent = PersonaAgent(profile=p.to_profile_dict())
-            res = await agent.respond(simulation.question, simulation.type)
+            agent = ResponseGenerationAgent(db, simulation, p)
+            res = await agent.generate_response()
             return p, res
             
         tasks = [process_persona(p) for p in batch]
 
-        for coro in asyncio.as_completed(tasks):
-            try:
-                persona, response = await coro
-                
+        try:
+            # wait for the batch to finish
+            batch_results = await asyncio.gather(*tasks, return_exceptions=False)
+            
+            for persona, response_dict in batch_results:
                 sim_response = SimulationResponse(
                     simulation_id=simulation.id,
                     persona_id=persona.id,
-                    response=response.response,
-                    sentiment=response.sentiment,
-                    confidence=response.confidence,
-                    decision=response.decision,
-                    metadata_json=json.dumps(response.metadata),
+                    response=response_dict.get("reason", ""),
+                    sentiment=response_dict.get("sentiment", 0.0),
+                    confidence=response_dict.get("confidence", 0),
+                    decision=response_dict.get("decision", "neutral"),
+                    metadata_json=json.dumps(response_dict),
                 )
                 db.add(sim_response)
-                all_responses.append(response)
                 
-                # Flush individually to get it in DB, though optional if we just want to send SSE
+                # Append for analytics
+                all_responses_dicts.append({
+                    "sentiment": sim_response.sentiment,
+                    "decision": sim_response.decision,
+                    "confidence": sim_response.confidence,
+                    "persona_id": sim_response.persona_id
+                })
+                
                 await db.flush()
                 
-                # Yield the JSON data for SSE
                 yield {
                     "persona_id": persona.id,
                     "persona_label": f"{persona.persona_id} ({persona.age}{persona.gender[0]}, {persona.city})",
-                    "response": response.response,
-                    "confidence": response.confidence,
-                    "decision": response.decision
+                    "response": sim_response.response,
+                    "confidence": sim_response.confidence,
+                    "decision": sim_response.decision
                 }
                 
-            except Exception as e:
-                print(f"[Simulation Error]: {e}")
-                
-        # Optional small delay between batches
+        except QuotaExceededError as e:
+            print(f"[Simulation Paused] Quota exceeded during stream: {e}")
+            simulation.status = "paused"
+            await db.commit()
+            yield {"status": "paused", "error": "Quota Exceeded. Simulation paused and will resume automatically."}
+            is_paused = True
+            break
+        except Exception as e:
+            print(f"[Simulation Error]: {e}")
+            # If an unexpected error occurs, mark paused to avoid losing progress
+            simulation.status = "paused"
+            await db.commit()
+            yield {"status": "paused", "error": f"Unexpected error: {str(e)}"}
+            is_paused = True
+            break
+            
         if i + batch_size < total:
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1.0) # Rate limiting pause
 
-    analytics = aggregate_results(all_responses, personas)
-    simulation.status = "completed"
-    simulation.completed_at = datetime.now(timezone.utc)
-    simulation.results_summary = json.dumps(analytics)
-    await db.commit()
-    
-    # Yield final analytics
-    yield {"analytics": analytics}
+    if not is_paused:
+        analytics = aggregate_results_dicts(all_responses_dicts, personas)
+        simulation.status = "completed"
+        simulation.completed_at = datetime.now(timezone.utc)
+        simulation.results_summary = json.dumps(analytics)
+        await db.commit()
+        yield {"analytics": analytics}
 
 
 async def run_simulation(
     db: AsyncSession,
     simulation: Simulation,
     personas: list[Persona],
-    batch_size: int = 20,
+    batch_size: int = 10,
 ) -> dict:
-    """Run a simulation across multiple persona agents.
+    """Run a simulation across multiple persona agents synchronously."""
+    completed_query = select(SimulationResponse.persona_id).where(SimulationResponse.simulation_id == simulation.id)
+    completed_result = await db.execute(completed_query)
+    completed_ids = set(completed_result.scalars().all())
     
-    Processes personas in batches concurrently to manage API rate limits.
-    Returns aggregated results.
-    """
-    all_responses: list[AgentResponse] = []
-    total = len(personas)
+    pending_personas = [p for p in personas if p.id not in completed_ids]
+    
+    existing_resp_query = select(SimulationResponse).where(SimulationResponse.simulation_id == simulation.id)
+    existing_resp_result = await db.execute(existing_resp_query)
+    all_responses_db = list(existing_resp_result.scalars().all())
+    
+    all_responses_dicts = [
+        {
+            "sentiment": r.sentiment,
+            "decision": r.decision,
+            "confidence": r.confidence,
+            "persona_id": r.persona_id
+        }
+        for r in all_responses_db
+    ]
 
-    # Process in batches
+    total = len(pending_personas)
+    if total == 0 and len(personas) > 0:
+        return aggregate_results_dicts(all_responses_dicts, personas)
+
+    is_paused = False
+
     for i in range(0, total, batch_size):
-        batch = personas[i:i + batch_size]
+        batch = pending_personas[i:i + batch_size]
         
-        # Create coroutines for this batch
-        tasks = []
-        for persona in batch:
-            agent = PersonaAgent(profile=persona.to_profile_dict())
-            tasks.append(agent.respond(simulation.question, simulation.type))
+        async def process_persona(p: Persona):
+            agent = ResponseGenerationAgent(db, simulation, p)
+            res = await agent.generate_response()
+            return p, res
 
-        # Run all agents in the batch concurrently
-        batch_responses = await asyncio.gather(*tasks, return_exceptions=True)
+        tasks = [process_persona(p) for p in batch]
 
-        # Process and save responses
-        for persona, response in zip(batch, batch_responses):
-            if isinstance(response, Exception):
-                print(f"[Simulation Error] Persona {persona.persona_id}: {response}")
-                continue
+        try:
+            batch_results = await asyncio.gather(*tasks, return_exceptions=False)
             
-            # Save individual response
-            sim_response = SimulationResponse(
-                simulation_id=simulation.id,
-                persona_id=persona.id,
-                response=response.response,
-                sentiment=response.sentiment,
-                confidence=response.confidence,
-                decision=response.decision,
-                metadata_json=json.dumps(response.metadata),
-            )
-            db.add(sim_response)
-            all_responses.append(response)
+            for persona, response_dict in batch_results:
+                sim_response = SimulationResponse(
+                    simulation_id=simulation.id,
+                    persona_id=persona.id,
+                    response=response_dict.get("reason", ""),
+                    sentiment=response_dict.get("sentiment", 0.0),
+                    confidence=response_dict.get("confidence", 0),
+                    decision=response_dict.get("decision", "neutral"),
+                    metadata_json=json.dumps(response_dict),
+                )
+                db.add(sim_response)
+                
+                all_responses_dicts.append({
+                    "sentiment": sim_response.sentiment,
+                    "decision": sim_response.decision,
+                    "confidence": sim_response.confidence,
+                    "persona_id": sim_response.persona_id
+                })
+                
+            await db.flush()
 
-        # Flush to DB after each batch to persist progress incrementally
-        await db.flush()
+        except QuotaExceededError as e:
+            print(f"[Simulation Paused] Quota exceeded: {e}")
+            simulation.status = "paused"
+            await db.commit()
+            is_paused = True
+            return {"status": "paused", "reason": "Quota Exceeded"}
+        except Exception as e:
+            print(f"[Simulation Error]: {e}")
+            simulation.status = "paused"
+            await db.commit()
+            is_paused = True
+            return {"status": "paused", "reason": str(e)}
 
-        # Small delay between batches to respect rate limits
         if i + batch_size < total:
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1.0)
 
-    # Aggregate results
-    analytics = aggregate_results(all_responses, personas)
-
-    # Update simulation
-    simulation.status = "completed"
-    simulation.completed_at = datetime.now(timezone.utc)
-    simulation.results_summary = json.dumps(analytics)
-
-    await db.commit()
-
-    return analytics
+    if not is_paused:
+        analytics = aggregate_results_dicts(all_responses_dicts, personas)
+        simulation.status = "completed"
+        simulation.completed_at = datetime.now(timezone.utc)
+        simulation.results_summary = json.dumps(analytics)
+        await db.commit()
+        return analytics
+    
+    return {"status": "paused"}
 
 
-def aggregate_results(responses: list[AgentResponse], personas: list[Persona]) -> dict:
-    """Aggregate individual responses into simulation analytics."""
+def aggregate_results_dicts(responses: list[dict], personas: list[Persona]) -> dict:
+    """Aggregate individual dict responses into simulation analytics."""
     if not responses:
         return {"error": "No responses collected"}
 
-    # Sentiment analysis
-    sentiments = [r.sentiment for r in responses]
+    sentiments = [r.get("sentiment", 0.0) for r in responses]
     avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else 0
 
     sentiment_dist = {
@@ -208,32 +289,28 @@ def aggregate_results(responses: list[AgentResponse], personas: list[Persona]) -
         "negative": len([s for s in sentiments if s < -0.2]),
     }
 
-    # Decision breakdown
-    decisions = [r.decision for r in responses]
+    decisions = [r.get("decision", "neutral") for r in responses]
     decision_counts = {}
     for d in decisions:
         decision_counts[d] = decision_counts.get(d, 0) + 1
 
-    # Confidence
-    confidences = [r.confidence for r in responses]
+    confidences = [r.get("confidence", 0) for r in responses]
     avg_confidence = sum(confidences) / len(confidences) if confidences else 0
 
-    # Demographic breakdown
-    persona_map = {p.persona_id: p for p in personas}
+    persona_map = {p.id: p for p in personas}  # Using ID now, previously was persona_id
     gender_breakdown = {}
     age_breakdown = {"18-25": 0, "26-35": 0, "36-45": 0, "46-55": 0, "56+": 0}
     state_breakdown = {}
     income_breakdown = {"<5L": 0, "5-10L": 0, "10-20L": 0, "20-50L": 0, "50L+": 0}
 
     for resp in responses:
-        persona = persona_map.get(resp.persona_id)
+        # Changed from p.persona_id to p.id indexing
+        persona = persona_map.get(resp.get("persona_id"))
         if not persona:
             continue
 
-        # Gender
         gender_breakdown[persona.gender] = gender_breakdown.get(persona.gender, 0) + 1
 
-        # Age groups
         if persona.age <= 25:
             age_breakdown["18-25"] += 1
         elif persona.age <= 35:
@@ -245,10 +322,8 @@ def aggregate_results(responses: list[AgentResponse], personas: list[Persona]) -
         else:
             age_breakdown["56+"] += 1
 
-        # State
         state_breakdown[persona.state] = state_breakdown.get(persona.state, 0) + 1
 
-        # Income
         income_lakhs = persona.income_inr / 100000
         if income_lakhs < 5:
             income_breakdown["<5L"] += 1
@@ -261,7 +336,6 @@ def aggregate_results(responses: list[AgentResponse], personas: list[Persona]) -
         else:
             income_breakdown["50L+"] += 1
 
-    # Positive decision rate (for market simulations)
     positive_decisions = sum(1 for d in decisions if d in ("yes", "stay", "persuaded", "support"))
     decision_rate = positive_decisions / len(decisions) if decisions else 0
 

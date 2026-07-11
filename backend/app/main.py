@@ -1,5 +1,6 @@
 """PersonaX — Agentic AI Platform Backend Entry Point."""
 
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,12 +25,17 @@ async def lifespan(app: FastAPI):
     # Auto-import personas for users that have none
     await _auto_import_personas()
 
+    # Start background resume worker
+    from app.engine.resume_manager import resume_paused_simulations
+    resume_task = asyncio.create_task(resume_paused_simulations())
+
     print("   [OK] PersonaX Backend Ready!\n")
 
     yield
 
     # Shutdown
     print("\n PersonaX Backend Shutting Down...\n")
+    resume_task.cancel()
 
 
 async def _auto_import_personas():

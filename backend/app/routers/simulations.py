@@ -152,8 +152,65 @@ async def create_simulation_stream(
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+@router.post("/{simulation_id}/resume", status_code=200)
+async def resume_simulation(
+    simulation_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually trigger a resume for a paused simulation in the background."""
+    result = await db.execute(
+        select(Simulation).where(
+            Simulation.id == simulation_id,
+            Simulation.user_id == current_user.id,
+        )
+    )
+    simulation = result.scalar_one_or_none()
+    if not simulation:
+        raise HTTPException(status_code=404, detail="Simulation not found")
 
+    if simulation.status != "paused":
+        raise HTTPException(status_code=400, detail=f"Simulation is {simulation.status}, not paused.")
 
+    # Calculate remaining
+    completed_query = select(SimRespModel.persona_id).where(SimRespModel.simulation_id == simulation.id)
+    completed_result = await db.execute(completed_query)
+    completed_ids = set(completed_result.scalars().all())
+    
+    needed_count = simulation.sample_size - len(completed_ids)
+    if needed_count <= 0:
+        simulation.status = "completed"
+        await db.commit()
+        return {"status": "completed", "message": "Simulation already has required responses."}
+        
+    filters = json.loads(simulation.config) if simulation.config else {}
+    personas = await select_persona_sample(
+        db, current_user.id, needed_count, filters, simulation.project_id, exclude_ids=completed_ids
+    )
+    
+    if not personas:
+        raise HTTPException(status_code=400, detail="No more matching personas found.")
+
+    simulation.status = "running"
+    await db.commit()
+
+    async def run_in_background(sim_id: str, persona_ids: list[str]):
+        from app.database import async_session
+        async with async_session() as session:
+            # Re-fetch objects in new session
+            sim_result = await session.execute(select(Simulation).where(Simulation.id == sim_id))
+            sim = sim_result.scalar_one()
+            
+            p_result = await session.execute(select(Persona).where(Persona.id.in_(persona_ids)))
+            db_personas = list(p_result.scalars().all())
+            
+            await run_simulation(session, sim, db_personas)
+            
+    # Spawn background task
+    persona_ids = [p.id for p in personas]
+    asyncio.create_task(run_in_background(simulation.id, persona_ids))
+    
+    return {"status": "resumed", "message": f"Resuming simulation for {needed_count} personas in the background."}
 @router.get("/{simulation_id}", response_model=SimulationResultFull)
 async def get_simulation(
     simulation_id: str,

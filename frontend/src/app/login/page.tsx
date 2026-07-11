@@ -25,8 +25,8 @@ export default function LoginPage() {
     try {
       const res = await api.post("/auth/login", { email, password });
       login(res.data.access_token, res.data.refresh_token);
-      toast.success("Logged in successfully");
-      router.push("/");
+      toast.success("Successfully logged in");
+      router.push("/dashboard");
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       const errorMsg = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg : "Failed to login";

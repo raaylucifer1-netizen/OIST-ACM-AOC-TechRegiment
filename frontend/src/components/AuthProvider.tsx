@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
-import { Loader2 } from "lucide-react";
 
-const publicRoutes = ["/login", "/register", "/verify-email"];
+const authRoutes = ["/login", "/register", "/verify-email"];
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, fetchUser } = useAuthStore();
+  const { isAuthenticated, fetchUser } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -26,29 +25,16 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   }, [fetchUser, isAuthenticated]);
 
   useEffect(() => {
-    if (!isLoading && mounted) {
-      const isPublicRoute = publicRoutes.includes(pathname);
-      if (!isAuthenticated && !isPublicRoute) {
-        router.push("/login");
-      } else if (isAuthenticated && isPublicRoute) {
-        router.push("/");
+    if (mounted) {
+      const isAuthRoute = authRoutes.includes(pathname);
+      // Redirect authenticated users away from login/register pages
+      if (isAuthenticated && isAuthRoute) {
+        router.push("/dashboard");
       }
     }
-  }, [isLoading, isAuthenticated, pathname, router, mounted]);
+  }, [isAuthenticated, pathname, router, mounted]);
 
-  const hasToken = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
-  if (isLoading && hasToken) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
-      </div>
-    );
-  }
-
+  // AuthProvider no longer renders loaders or blocks rendering.
+  // It simply initializes auth state. Route protection is handled by AuthGuard.
   return <>{children}</>;
 }

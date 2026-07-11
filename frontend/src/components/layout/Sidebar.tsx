@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Personas", href: "/personas", icon: Users },
   { name: "Simulations", href: "/simulations", icon: BarChart2 },
   { name: "Conversations", href: "/conversations", icon: MessageSquare },
