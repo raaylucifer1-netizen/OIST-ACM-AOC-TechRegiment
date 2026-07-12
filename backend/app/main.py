@@ -10,7 +10,12 @@ from sqlalchemy import text
 from app.config import settings
 from app.database import init_db, async_session
 
-# Configure structured production logging
+# ---------------------------------------------------------
+# BACKEND ARCHITECTURE: Render (Docker)
+# FRONTEND ARCHITECTURE: Vercel
+# ---------------------------------------------------------
+
+# Configure structured production logging for Render Log Streams
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -18,43 +23,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger("personax")
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events."""
-    logger.info("PersonaX Backend Starting...")
+    """Startup and shutdown events optimized for Render container lifecycles."""
+    logger.info("Backend Starting on Render...")
     
-    # Startup Validation
+    # 1. Startup Validation
     if not settings.DATABASE_URL:
         logger.error("DATABASE_URL environment variable is missing.")
-        raise RuntimeError("DATABASE_URL environment variable is missing.")
+        raise RuntimeError("DATABASE_URL environment variable is missing in Render.")
         
     try:
         # Import models to register them with Base
         import app.models  # noqa: F401
         
-        # Connect to Supabase PostgreSQL and verify connection
-        logger.info("Attempting to connect to the database...")
+        # 2. Connect to Supabase PostgreSQL and verify connection
+        logger.info("Attempting to connect to Supabase PostgreSQL...")
         async with async_session() as db:
             await db.execute(text("SELECT 1"))
-        logger.info("Successfully connected to the database.")
+        logger.info("Successfully connected to Supabase.")
         
+        # 3. Initialize tables 
         await init_db()
         logger.info("Database tables initialized.")
     except Exception as e:
-        logger.exception(f"Failed to connect to or initialize the database. Error: {e}")
+        logger.exception(f"Failed to connect to Supabase. Error: {e}")
         raise
 
-    # Start background resume worker
+    # 4. Start background resume worker
     from app.engine.resume_manager import resume_paused_simulations
     resume_task = asyncio.create_task(resume_paused_simulations())
 
-    logger.info("PersonaX Backend Ready!")
+    logger.info("Backend Ready to accept Vercel traffic!")
 
     yield
 
-    # Shutdown
-    logger.info("PersonaX Backend Shutting Down...")
+    # 5. Safe Shutdown (SIGTERM handling from Render)
+    logger.info("Render is shutting down the backend...")
     resume_task.cancel()
     try:
         await resume_task
@@ -66,14 +71,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="Agentic AI Platform — Synthetic Human Population Simulator",
+    description="Agentic AI Platform Backend",
     lifespan=lifespan,
 )
 
-# CORS middleware
+# CORS middleware for Vercel Frontend
+# Removes '*' if allow_credentials is True to prevent production security errors in FastAPI
+allowed_origins = [origin for origin in settings.cors_origins_list if origin != "*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=allowed_origins if allowed_origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -98,7 +105,6 @@ app.include_router(analytics_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 app.include_router(reports_router, prefix="/api")
 
-
 @app.get("/")
 async def root():
     return {
@@ -106,8 +112,8 @@ async def root():
         "version": settings.APP_VERSION,
         "status": "running",
         "docs": "/docs",
+        "message": "API is online on Render."
     }
-
 
 @app.get("/health")
 async def health():
