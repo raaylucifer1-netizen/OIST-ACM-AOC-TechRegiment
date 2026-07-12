@@ -38,14 +38,14 @@ async def lifespan(app: FastAPI):
         import app.models  # noqa: F401
         
         # 2. Connect to Supabase PostgreSQL and verify connection
-        logger.info("Attempting to connect to Supabase PostgreSQL...")
+        logger.info(f"DATABASE_URL = {settings.DATABASE_URL}")
+        logger.info("Trying database connection...")
+        
         async with async_session() as db:
             await db.execute(text("SELECT 1"))
-        logger.info("Successfully connected to Supabase.")
-        
-        # 3. Initialize tables 
+            
         await init_db()
-        logger.info("Database tables initialized.")
+        logger.info("Database connected successfully.")
     except Exception as e:
         logger.exception(f"Failed to connect to Supabase. Error: {e}")
         raise
